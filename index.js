@@ -1,0 +1,65 @@
+const express = require('express');
+const bodyParser = require('body-parser');
+const cors = require('cors');
+const sequelize = require('./config/database');
+const authRoutes = require('./routes/authRoutes');
+const userRoutes = require('./routes/userRoutes');
+const cursoRoutes = require('./routes/cursoRoutes');
+const nivelRoutes = require('./routes/nivelRoutes');
+const grupoRoutes = require('./routes/grupoRoutes');
+const inscripcionesRoutes = require('./routes/inscripcionesRoutes');
+const unidadesRoutes = require('./routes/unidadesRoutes');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(cors());
+app.use(bodyParser.json());
+
+const Curso = require('./models/Cursos');
+const Nivel = require('./models/Niveles');
+const Grupo = require('./models/Grupos');
+const Usuario = require('./models/Usuario');
+const Inscripcion = require('./models/Inscripciones');
+const Unidades = require('./models/Unidades');
+const Semanas = require('./models/Semanas');
+
+// Asociaciones
+Curso.hasMany(Nivel, { foreignKey: 'curso_id', as: 'niveles' });
+Nivel.belongsTo(Curso, { foreignKey: 'curso_id', as: 'curso' });
+Nivel.hasMany(Grupo, { foreignKey: 'nivel_id', as: 'grupos' });
+Grupo.belongsTo(Nivel, { foreignKey: 'nivel_id', as: 'nivel' });
+Usuario.hasMany(Grupo, { foreignKey: 'docente_id', as: 'grupos_docente' });
+Grupo.belongsTo(Usuario, { foreignKey: 'docente_id', as: 'docente' });
+
+// Inscripciones asociaciones
+Inscripcion.belongsTo(Grupo, { foreignKey: 'grupo_id', as: 'grupo' });
+Grupo.hasMany(Inscripcion, { foreignKey: 'grupo_id', as: 'inscripciones' });
+Inscripcion.belongsTo(Usuario, { foreignKey: 'estudiante_id', as: 'estudiante' });
+Usuario.hasMany(Inscripcion, { foreignKey: 'estudiante_id', as: 'inscripciones' });
+
+// Unidades y Semanas
+Grupo.hasMany(Unidades, { foreignKey: 'grupo_id', as: 'unidades' });
+Unidades.belongsTo(Grupo, { foreignKey: 'grupo_id', as: 'grupo' });
+Unidades.hasMany(Semanas, { foreignKey: 'unidad_id', as: 'semanas' });
+Semanas.belongsTo(Unidades, { foreignKey: 'unidad_id', as: 'unidad' });
+
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/cursos', cursoRoutes);
+app.use('/api/niveles', nivelRoutes);
+app.use('/api/grupos', grupoRoutes);
+app.use('/api/inscripciones', inscripcionesRoutes);
+app.use('/api/unidades', unidadesRoutes);
+
+sequelize.sync()
+    .then(() => {
+        console.log('La base de datos se conecto correctamente');
+        app.listen(PORT, () => {
+            console.log(`El servidor esta corriendo en el puerto ${PORT}`);
+            console.log('Esperando peticiones...');
+        });
+    })
+    .catch(err => {
+        console.error('Error al conectar a la base de datos:', err);
+    });
