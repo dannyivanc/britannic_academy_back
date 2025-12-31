@@ -39,8 +39,8 @@ Inscripcion.belongsTo(Usuario, { foreignKey: 'estudiante_id', as: 'estudiante' }
 Usuario.hasMany(Inscripcion, { foreignKey: 'estudiante_id', as: 'inscripciones' });
 
 // Unidades y Semanas
-Grupo.hasMany(Unidades, { foreignKey: 'grupo_id', as: 'unidades' });
-Unidades.belongsTo(Grupo, { foreignKey: 'grupo_id', as: 'grupo' });
+Nivel.hasMany(Unidades, { foreignKey: 'nivel_id', as: 'unidades' });
+Unidades.belongsTo(Nivel, { foreignKey: 'nivel_id', as: 'nivel' });
 Unidades.hasMany(Semanas, { foreignKey: 'unidad_id', as: 'semanas' });
 Semanas.belongsTo(Unidades, { foreignKey: 'unidad_id', as: 'unidad' });
 

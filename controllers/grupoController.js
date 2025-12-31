@@ -1,6 +1,96 @@
 const Grupo = require('../models/Grupos');
 const Nivel = require('../models/Niveles');
 const Usuario = require('../models/Usuario');
+const Inscripcion = require('../models/Inscripciones');
+const Unidades = require('../models/Unidades');
+const Semanas = require('../models/Semanas');
+const Curso = require('../models/Cursos');
+
+exports.getGruposByUser = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const user = await Usuario.findByPk(userId);
+
+        if (!user) {
+            return res.status(404).json({ message: 'Usuario no encontrado' });
+        }
+
+        let grupos = [];
+
+        if (user.rol === 'docente') {
+            grupos = await Grupo.findAll({
+                where: {
+                    docente_id: userId,
+                    estado: 'activo' // mostrar solo grupos activos
+                },
+                include: [{ model: Nivel, as: 'nivel', attributes: ['nombre'] }],
+                order: [['id', 'DESC']]
+            });
+        } else if (user.rol === 'estudiante') {
+            const inscripciones = await Inscripcion.findAll({
+                where: { estudiante_id: userId },
+                include: [{
+                    model: Grupo,
+                    as: 'grupo',
+                    where: {
+                        estado: ['activo', 'completado'] // mostrar solo grupos activos y completados
+                    },
+                    include: [{ model: Nivel, as: 'nivel', attributes: ['nombre'] }]
+                }]
+            });
+            grupos = inscripciones.map(i => i.grupo);
+        }
+
+        res.json(grupos);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+exports.getGrupoById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const grupo = await Grupo.findByPk(id, {
+            include: [
+                {
+                    model: Nivel,
+                    as: 'nivel',
+                    attributes: ['id', 'nombre'],
+                    include: [
+                        {
+                            model: Curso,
+                            as: 'curso',
+                            attributes: ['id', 'nombre']
+                        },
+                        {
+                            model: Unidades,
+                            as: 'unidades',
+                            include: [
+                                {
+                                    model: Semanas,
+                                    as: 'semanas'
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    model: Usuario,
+                    as: 'docente',
+                    attributes: ['id', 'nombre']
+                }
+            ]
+        });
+
+        if (!grupo) {
+            return res.status(404).json({ message: 'Grupo no encontrado' });
+        }
+
+        res.json(grupo);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
 
 exports.getAllGrupos = async (req, res) => {
     try {
@@ -91,9 +181,6 @@ exports.toggleGrupoStatus = async (req, res) => {
         if (grupo.estado === 'completado') {
             return res.status(403).json({ message: 'No se puede cambiar el estado de un grupo completado' });
         }
-
-        // Ciclar entre activo e inactivo (o completado si se prefiere una lógica más compleja)
-        // Por simplicidad en el toggle, alternaremos entre activo e inactivo
         grupo.estado = grupo.estado === 'activo' ? 'inactivo' : 'activo';
         await grupo.save();
 

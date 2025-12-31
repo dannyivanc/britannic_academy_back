@@ -11,7 +11,7 @@ const Unidades = sequelize.define('Unidades', {
         type: DataTypes.STRING,
         allowNull: false,
     },
-    grupo_id: {
+    nivel_id: {
         type: DataTypes.INTEGER,
         allowNull: false,
     },
