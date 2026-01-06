@@ -5,6 +5,8 @@ const Inscripcion = require('../models/Inscripciones');
 const Unidades = require('../models/Unidades');
 const Semanas = require('../models/Semanas');
 const Curso = require('../models/Cursos');
+const PermisoMaterial = require('../models/PermisoMaterial');
+const { Op } = require('sequelize');
 
 exports.getGruposByUser = async (req, res) => {
     try {
@@ -50,6 +52,26 @@ exports.getGruposByUser = async (req, res) => {
 exports.getGrupoById = async (req, res) => {
     try {
         const { id } = req.params;
+
+        let unidadesWhere = {};
+
+        // Filtrar unidades si es estudiante
+        if (req.user && req.user.rol === 'estudiante') {
+            const permisos = await PermisoMaterial.findAll({
+                where: {
+                    usuario_id: req.user.userId,
+                    tipo_recurso: 'unidad'
+                }
+            });
+            const unidadesPermitidasIds = permisos.map(p => p.recurso_id);
+
+            if (unidadesPermitidasIds.length === 0) {
+                unidadesWhere = { id: -1 }; // Force empty result
+            } else {
+                unidadesWhere = { id: { [Op.in]: unidadesPermitidasIds } };
+            }
+        }
+
         const grupo = await Grupo.findByPk(id, {
             include: [
                 {
@@ -65,6 +87,8 @@ exports.getGrupoById = async (req, res) => {
                         {
                             model: Unidades,
                             as: 'unidades',
+                            where: Object.keys(unidadesWhere).length > 0 ? unidadesWhere : undefined,
+                            required: false, // Permitir que el grupo cargue aunque no tenga unidades (o el filtro las oculte todas)
                             include: [
                                 {
                                     model: Semanas,

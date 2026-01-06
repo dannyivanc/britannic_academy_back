@@ -1,11 +1,31 @@
 const Unidades = require('../models/Unidades');
 const Semanas = require('../models/Semanas');
+const PermisoMaterial = require('../models/PermisoMaterial');
+const { Op } = require('sequelize');
 
 exports.getUnidadesByNivel = async (req, res) => {
     try {
         const { nivel_id } = req.params;
+        const whereClause = { nivel_id };
+
+        // Filtrar si es estudiante
+        if (req.user && req.user.rol === 'estudiante') {
+            const permisos = await PermisoMaterial.findAll({
+                where: {
+                    usuario_id: req.user.userId,
+                    tipo_recurso: 'unidad'
+                }
+            });
+            const unidadesPermitidasIds = permisos.map(p => p.recurso_id);
+
+            if (unidadesPermitidasIds.length === 0) {
+                return res.json([]);
+            }
+            whereClause.id = { [Op.in]: unidadesPermitidasIds };
+        }
+
         const unidades = await Unidades.findAll({
-            where: { nivel_id },
+            where: whereClause,
             include: [{ model: Semanas, as: 'semanas' }]
         });
         res.json(unidades);
