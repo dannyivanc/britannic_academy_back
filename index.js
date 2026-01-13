@@ -10,6 +10,7 @@ const grupoRoutes = require('./routes/grupoRoutes');
 const inscripcionesRoutes = require('./routes/inscripcionesRoutes');
 const unidadesRoutes = require('./routes/unidadesRoutes');
 const gameRoutes = require('./routes/gameRoutes');
+const pdfRoutes = require('./routes/pdfRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -27,6 +28,7 @@ const Unidades = require('./models/Unidades');
 const Semanas = require('./models/Semanas');
 const ListaJuegos = require('./models/ListaJuegos');
 const JuegoEmpList = require('./models/JuegoEmpList');
+const Pdfs = require('./models/Pdfs');
 
 // Asociaciones
 Curso.hasMany(Nivel, { foreignKey: 'curso_id', as: 'niveles' });
@@ -54,6 +56,10 @@ ListaJuegos.belongsTo(Semanas, { foreignKey: 'semana_id', as: 'semana' });
 ListaJuegos.hasMany(JuegoEmpList, { foreignKey: 'lista_id', as: 'palabras' });
 JuegoEmpList.belongsTo(ListaJuegos, { foreignKey: 'lista_id', as: 'lista' });
 
+// PDFs
+Unidades.hasOne(Pdfs, { foreignKey: 'unidad_id', as: 'pdf' });
+Pdfs.belongsTo(Unidades, { foreignKey: 'unidad_id', as: 'unidad' });
+
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/cursos', cursoRoutes);
@@ -62,8 +68,9 @@ app.use('/api/grupos', grupoRoutes);
 app.use('/api/inscripciones', inscripcionesRoutes);
 app.use('/api/unidades', unidadesRoutes);
 app.use('/api/games', gameRoutes);
+app.use('/api/pdfs', pdfRoutes);
 
-sequelize.sync()
+sequelize.sync({ alter: true })
     .then(() => {
         console.log('La base de datos se conecto correctamente');
         app.listen(PORT, () => {

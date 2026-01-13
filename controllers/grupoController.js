@@ -6,6 +6,7 @@ const Unidades = require('../models/Unidades');
 const Semanas = require('../models/Semanas');
 const Curso = require('../models/Cursos');
 const PermisoMaterial = require('../models/PermisoMaterial');
+const Pdfs = require('../models/Pdfs');
 const { Op } = require('sequelize');
 
 exports.getGruposByUser = async (req, res) => {
@@ -55,20 +56,28 @@ exports.getGrupoById = async (req, res) => {
 
         let unidadesWhere = {};
 
-        // Filtrar unidades si es estudiante
+        // Filtrar unidades y pdfs si es estudiante
+        let pdfsWhere = {};
         if (req.user && req.user.rol === 'estudiante') {
             const permisos = await PermisoMaterial.findAll({
                 where: {
                     usuario_id: req.user.userId,
-                    tipo_recurso: 'unidad'
+                    tipo_recurso: ['unidad', 'documento']
                 }
             });
-            const unidadesPermitidasIds = permisos.map(p => p.recurso_id);
+            const unidadesPermitidasIds = permisos.filter(p => p.tipo_recurso === 'unidad').map(p => p.recurso_id);
+            const pdfsPermitidosIds = permisos.filter(p => p.tipo_recurso === 'documento').map(p => p.recurso_id);
 
             if (unidadesPermitidasIds.length === 0) {
-                unidadesWhere = { id: -1 }; // Force empty result
+                unidadesWhere = { id: -1 };
             } else {
                 unidadesWhere = { id: { [Op.in]: unidadesPermitidasIds } };
+            }
+
+            if (pdfsPermitidosIds.length === 0) {
+                pdfsWhere = { id: -1 };
+            } else {
+                pdfsWhere = { id: { [Op.in]: pdfsPermitidosIds } };
             }
         }
 
@@ -93,6 +102,12 @@ exports.getGrupoById = async (req, res) => {
                                 {
                                     model: Semanas,
                                     as: 'semanas'
+                                },
+                                {
+                                    model: Pdfs,
+                                    as: 'pdf',
+                                    where: Object.keys(pdfsWhere).length > 0 ? pdfsWhere : undefined,
+                                    required: false
                                 }
                             ]
                         }
