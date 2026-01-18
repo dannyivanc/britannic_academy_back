@@ -138,7 +138,14 @@ exports.getAllGrupos = async (req, res) => {
                 {
                     model: Nivel,
                     as: 'nivel',
-                    attributes: ['id', 'nombre']
+                    attributes: ['id', 'nombre', 'curso_id'],
+                    include: [
+                        {
+                            model: Curso,
+                            as: 'curso',
+                            attributes: ['id', 'nombre']
+                        }
+                    ]
                 },
                 {
                     model: Usuario,
@@ -156,7 +163,7 @@ exports.getAllGrupos = async (req, res) => {
 
 exports.createGrupo = async (req, res) => {
     try {
-        const { codigo, nombre, descripcion, nivel_id, docente_id, estado } = req.body;
+        const { codigo, horario, dias, fecha_inicio, descripcion, nivel_id, docente_id, estado } = req.body;
 
         const existingGrupo = await Grupo.findOne({ where: { codigo } });
         if (existingGrupo) {
@@ -165,7 +172,9 @@ exports.createGrupo = async (req, res) => {
 
         const grupo = await Grupo.create({
             codigo,
-            nombre,
+            horario,
+            dias,
+            fecha_inicio,
             descripcion,
             nivel_id,
             docente_id,
@@ -180,7 +189,7 @@ exports.createGrupo = async (req, res) => {
 exports.updateGrupo = async (req, res) => {
     try {
         const { id } = req.params;
-        const { codigo, nombre, descripcion, nivel_id, docente_id, estado } = req.body;
+        const { codigo, horario, dias, fecha_inicio, descripcion, nivel_id, docente_id, estado } = req.body;
         const grupo = await Grupo.findByPk(id);
 
         if (!grupo) return res.status(404).json({ message: 'Grupo no encontrado' });
@@ -197,7 +206,9 @@ exports.updateGrupo = async (req, res) => {
         }
 
         grupo.codigo = codigo || grupo.codigo;
-        grupo.nombre = nombre || grupo.nombre;
+        grupo.horario = horario || grupo.horario;
+        grupo.dias = dias || grupo.dias;
+        grupo.fecha_inicio = fecha_inicio || grupo.fecha_inicio;
         grupo.descripcion = descripcion !== undefined ? descripcion : grupo.descripcion;
         grupo.nivel_id = nivel_id || grupo.nivel_id;
         grupo.docente_id = docente_id || grupo.docente_id;

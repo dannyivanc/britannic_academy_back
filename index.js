@@ -11,13 +11,33 @@ const inscripcionesRoutes = require('./routes/inscripcionesRoutes');
 const unidadesRoutes = require('./routes/unidadesRoutes');
 const gameRoutes = require('./routes/gameRoutes');
 const pdfRoutes = require('./routes/pdfRoutes');
+const videoRoutes = require('./routes/videoRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+    next();
+});
+
+app.use(cors({
+    origin: (origin, callback) => {
+        // Permitir todos los orígenes en desarrollo, pero devolviendo el origen exacto para CORS con credentials
+        callback(null, true);
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['*'],
+    credentials: true,
+    optionsSuccessStatus: 200 // Importante para algunos navegadores con preflight
+}));
 app.use(bodyParser.json());
 app.use('/uploads', express.static('uploads'));
+
+app.get('/api/health', (req, res) => {
+    console.log('Health check requested');
+    res.json({ message: 'Backend is reachable via tunnel' });
+});
 
 const Curso = require('./models/Cursos');
 const Nivel = require('./models/Niveles');
@@ -29,6 +49,7 @@ const Semanas = require('./models/Semanas');
 const ListaJuegos = require('./models/ListaJuegos');
 const JuegoEmpList = require('./models/JuegoEmpList');
 const Pdfs = require('./models/Pdfs');
+const Videos = require('./models/Videos');
 
 // Asociaciones
 Curso.hasMany(Nivel, { foreignKey: 'curso_id', as: 'niveles' });
@@ -60,6 +81,10 @@ JuegoEmpList.belongsTo(ListaJuegos, { foreignKey: 'lista_id', as: 'lista' });
 Unidades.hasOne(Pdfs, { foreignKey: 'unidad_id', as: 'pdf' });
 Pdfs.belongsTo(Unidades, { foreignKey: 'unidad_id', as: 'unidad' });
 
+// Videos
+Semanas.hasMany(Videos, { foreignKey: 'semana_id', as: 'videos' });
+Videos.belongsTo(Semanas, { foreignKey: 'semana_id', as: 'semana' });
+
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/cursos', cursoRoutes);
@@ -69,6 +94,7 @@ app.use('/api/inscripciones', inscripcionesRoutes);
 app.use('/api/unidades', unidadesRoutes);
 app.use('/api/games', gameRoutes);
 app.use('/api/pdfs', pdfRoutes);
+app.use('/api/videos', videoRoutes);
 
 sequelize.sync({ alter: true })
     .then(() => {

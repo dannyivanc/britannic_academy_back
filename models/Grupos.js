@@ -11,8 +11,16 @@ const Grupo = sequelize.define('Grupo', {
         type: DataTypes.STRING,
         allowNull: false,
     },
-    nombre: {
+    horario: {
         type: DataTypes.STRING,
+        allowNull: false,
+    },
+    dias: {
+        type: DataTypes.STRING,
+        allowNull: false,
+    },
+    fecha_inicio: {
+        type: DataTypes.DATE,
         allowNull: false,
     },
     descripcion: {
