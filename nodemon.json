@@ -1,0 +1,9 @@
+{
+    "ignore": [
+        "uploads/*",
+        "node_modules/*",
+        "*.test.js",
+        "test-zip.js"
+    ],
+    "delay": "2500"
+}

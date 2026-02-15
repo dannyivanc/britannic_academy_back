@@ -1,5 +1,6 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const sequelize = require('./config/database');
 const authRoutes = require('./routes/authRoutes');
@@ -12,6 +13,11 @@ const unidadesRoutes = require('./routes/unidadesRoutes');
 const gameRoutes = require('./routes/gameRoutes');
 const pdfRoutes = require('./routes/pdfRoutes');
 const videoRoutes = require('./routes/videoRoutes');
+const ebookRoutes = require('./routes/ebookRoutes');
+const contactoRoutes = require('./routes/contactoRoutes');
+const galeriaRoutes = require('./routes/galeriaRoutes');
+const certificadoRoutes = require('./routes/certificadoRoutes');
+const comunicadoRoutes = require('./routes/comunicadoRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -26,12 +32,13 @@ app.use(cors({
         // Permitir todos los orígenes en desarrollo, pero devolviendo el origen exacto para CORS con credentials
         callback(null, true);
     },
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['*'],
     credentials: true,
     optionsSuccessStatus: 200 // Importante para algunos navegadores con preflight
 }));
 app.use(bodyParser.json());
+app.use(cookieParser());
 app.use('/uploads', express.static('uploads'));
 
 app.get('/api/health', (req, res) => {
@@ -50,6 +57,11 @@ const ListaJuegos = require('./models/ListaJuegos');
 const JuegoEmpList = require('./models/JuegoEmpList');
 const Pdfs = require('./models/Pdfs');
 const Videos = require('./models/Videos');
+const Ebooks = require('./models/Ebooks');
+const Contactos = require('./models/Contactos');
+const Galeria = require('./models/Galeria');
+const Certificados = require('./models/Certificados');
+const Comunicado = require('./models/Comunicado');
 
 // Asociaciones
 Curso.hasMany(Nivel, { foreignKey: 'curso_id', as: 'niveles' });
@@ -64,6 +76,10 @@ Inscripcion.belongsTo(Grupo, { foreignKey: 'grupo_id', as: 'grupo' });
 Grupo.hasMany(Inscripcion, { foreignKey: 'grupo_id', as: 'inscripciones' });
 Inscripcion.belongsTo(Usuario, { foreignKey: 'estudiante_id', as: 'estudiante' });
 Usuario.hasMany(Inscripcion, { foreignKey: 'estudiante_id', as: 'inscripciones' });
+
+// Certificados asociaciones
+Certificados.belongsTo(Usuario, { foreignKey: 'estudiante_id', as: 'estudiante' });
+Usuario.hasMany(Certificados, { foreignKey: 'estudiante_id', as: 'certificados' });
 
 // Unidades y Semanas
 Nivel.hasMany(Unidades, { foreignKey: 'nivel_id', as: 'unidades' });
@@ -81,6 +97,10 @@ JuegoEmpList.belongsTo(ListaJuegos, { foreignKey: 'lista_id', as: 'lista' });
 Unidades.hasOne(Pdfs, { foreignKey: 'unidad_id', as: 'pdf' });
 Pdfs.belongsTo(Unidades, { foreignKey: 'unidad_id', as: 'unidad' });
 
+// Ebooks
+Unidades.hasOne(Ebooks, { foreignKey: 'unidad_id', as: 'ebook' });
+Ebooks.belongsTo(Unidades, { foreignKey: 'unidad_id', as: 'unidad' });
+
 // Videos
 Semanas.hasMany(Videos, { foreignKey: 'semana_id', as: 'videos' });
 Videos.belongsTo(Semanas, { foreignKey: 'semana_id', as: 'semana' });
@@ -95,8 +115,22 @@ app.use('/api/unidades', unidadesRoutes);
 app.use('/api/games', gameRoutes);
 app.use('/api/pdfs', pdfRoutes);
 app.use('/api/videos', videoRoutes);
+app.use('/api/ebooks', ebookRoutes);
+app.use('/api/contactos', contactoRoutes);
+app.use('/api/galeria', galeriaRoutes);
+app.use('/api/certificados', certificadoRoutes);
+app.use('/api/comunicados', comunicadoRoutes);
 
-sequelize.sync({ alter: true })
+// Global Error Handler
+app.use((err, req, res, next) => {
+    console.error('--- Global Error Handler ---');
+    console.error(err.stack);
+    res.status(err.status || 500).json({
+        error: err.message || 'Error interno del servidor'
+    });
+});
+
+sequelize.sync({ alter: false })
     .then(() => {
         console.log('La base de datos se conecto correctamente');
         app.listen(PORT, () => {

@@ -5,6 +5,8 @@ const authenticateToken = require('../midleware/authMiddleware'); // Typo in pat
 
 router.use(authenticateToken); // Protect all user routes
 
+router.get('/profile', userController.getProfile);
+router.put('/profile', userController.updateProfile);
 router.get('/', userController.getAllUsers);
 router.post('/', userController.createUser);
 router.put('/:id', userController.updateUser);

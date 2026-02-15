@@ -17,24 +17,16 @@ exports.getPermisosUsuario = async (req, res) => {
     }
 };
 
-// Actualizar permisos (Recibe lista de objetos { tipo, id })
-// Esta función espera recibir TODOS los permisos QUE DEBEN QUEDAR.
-// Borra lo anterior y crea lo nuevo.
-// Opcional: Podría recibir filtros por tipo si queremos actualizar solo juegos sin tocar documentos.
 exports.updatePermisosUsuario = async (req, res) => {
     try {
         const { usuarioId } = req.params;
-        const { materiales } = req.body; // Array de { tipo_recurso, recurso_id }
+        const { materiales } = req.body;
 
         if (!Array.isArray(materiales)) {
             return res.status(400).json({ error: 'Formato de datos inválido' });
         }
 
-        // Transacción simple: borrar todo y crear nuevos
-        // NOTA: Si queremos ser más finos y solo actualizar juegos, habría que filtrar el destroy.
-        // Asumimos que el frontend envía TODO lo que el usuario debe tener (snapshot completo) 
-        // o envía un flag 'tipo' para saber qué borrar.
-        // Para soportar modularidad, permitiremos pasar un filtro query param opcional ?tipo=juego
+
 
         const { tipo } = req.query;
         const whereClause = { usuario_id: usuarioId };

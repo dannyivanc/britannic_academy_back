@@ -101,3 +101,45 @@ exports.toggleUserStatus = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+exports.getProfile = async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const user = await Usuario.findByPk(userId, {
+            attributes: { exclude: ['password'] }
+        });
+        if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+        res.json(user);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+exports.updateProfile = async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const { celular, email, password } = req.body;
+        const user = await Usuario.findByPk(userId);
+
+        if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+
+        if (email && email !== user.email) {
+            const existingEmail = await Usuario.findOne({ where: { email } });
+            if (existingEmail) {
+                return res.status(400).json({ message: 'El correo electrónico ya está registrado' });
+            }
+            user.email = email;
+        }
+
+        if (celular) user.celular = celular;
+
+        if (password) {
+            user.password = await bcrypt.hash(password, 10);
+        }
+
+        await user.save();
+        res.json({ message: 'Perfil actualizado correctamente' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};

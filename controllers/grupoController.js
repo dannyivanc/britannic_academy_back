@@ -7,6 +7,7 @@ const Semanas = require('../models/Semanas');
 const Curso = require('../models/Cursos');
 const PermisoMaterial = require('../models/PermisoMaterial');
 const Pdfs = require('../models/Pdfs');
+const Ebooks = require('../models/Ebooks');
 const { Op } = require('sequelize');
 
 exports.getGruposByUser = async (req, res) => {
@@ -24,31 +25,67 @@ exports.getGruposByUser = async (req, res) => {
             grupos = await Grupo.findAll({
                 where: {
                     docente_id: userId,
-                    estado: 'activo' // mostrar solo grupos activos
+                    estado: 'activo'
                 },
-                include: [{ model: Nivel, as: 'nivel', attributes: ['nombre'] }],
-                order: [['id', 'DESC']]
+                include: [{
+                    model: Nivel, as: 'nivel',
+                    attributes: ['id', 'nombre'],
+                    include: [{
+                        model: Unidades, as: 'unidades',
+                        attributes: ['id', 'nombre'],
+                        include: [{ model: Semanas, as: 'semanas', attributes: ['id', 'nombre'] }]
+                    }]
+                }],
+                order: [
+                    ['id', 'DESC'],
+                    [{ model: Nivel, as: 'nivel' }, 'orden', 'ASC'],
+                    [{ model: Nivel, as: 'nivel' }, { model: Unidades, as: 'unidades' }, 'id', 'ASC'],
+                    [{ model: Nivel, as: 'nivel' }, { model: Unidades, as: 'unidades' }, { model: Semanas, as: 'semanas' }, 'id', 'ASC']
+                ]
             });
         } else if (user.rol === 'estudiante') {
+            // Obtener unidades permitidas
+            const permisos = await PermisoMaterial.findAll({
+                where: { usuario_id: userId, tipo_recurso: 'unidad' }
+            });
+            const unidadesPermitidasIds = permisos.map(p => p.recurso_id);
+
             const inscripciones = await Inscripcion.findAll({
                 where: { estudiante_id: userId },
                 include: [{
                     model: Grupo,
                     as: 'grupo',
-                    where: {
-                        estado: ['activo', 'completado'] // mostrar solo grupos activos y completados
-                    },
-                    include: [{ model: Nivel, as: 'nivel', attributes: ['nombre'] }]
-                }]
+                    where: { estado: ['activo', 'completado'] },
+                    include: [{
+                        model: Nivel, as: 'nivel',
+                        attributes: ['id', 'nombre', 'orden'],
+                        include: [{
+                            model: Unidades, as: 'unidades',
+                            where: { id: { [Op.in]: unidadesPermitidasIds } },
+                            attributes: ['id', 'nombre'],
+                            required: false,
+                            include: [{ model: Semanas, as: 'semanas', attributes: ['id', 'nombre'] }]
+                        }]
+                    }]
+                }],
+                order: [
+                    ['id', 'DESC'], // Inscripcion.id
+                    [{ model: Grupo, as: 'grupo' }, { model: Nivel, as: 'nivel' }, 'orden', 'ASC'],
+                    [{ model: Grupo, as: 'grupo' }, { model: Nivel, as: 'nivel' }, { model: Unidades, as: 'unidades' }, 'id', 'ASC'],
+                    [{ model: Grupo, as: 'grupo' }, { model: Nivel, as: 'nivel' }, { model: Unidades, as: 'unidades' }, { model: Semanas, as: 'semanas' }, 'id', 'ASC']
+                ]
             });
+
             grupos = inscripciones.map(i => i.grupo);
         }
 
         res.json(grupos);
     } catch (error) {
+        console.error('Error en getGruposByUser:', error);
         res.status(500).json({ message: error.message });
     }
 };
+
 
 exports.getGrupoById = async (req, res) => {
     try {
@@ -56,17 +93,19 @@ exports.getGrupoById = async (req, res) => {
 
         let unidadesWhere = {};
 
-        // Filtrar unidades y pdfs si es estudiante
+        // Filtrar unidades, pdfs y ebooks si es estudiante
         let pdfsWhere = {};
+        let ebooksWhere = {};
         if (req.user && req.user.rol === 'estudiante') {
             const permisos = await PermisoMaterial.findAll({
                 where: {
                     usuario_id: req.user.userId,
-                    tipo_recurso: ['unidad', 'documento']
+                    tipo_recurso: ['unidad', 'documento', 'ebook']
                 }
             });
             const unidadesPermitidasIds = permisos.filter(p => p.tipo_recurso === 'unidad').map(p => p.recurso_id);
             const pdfsPermitidosIds = permisos.filter(p => p.tipo_recurso === 'documento').map(p => p.recurso_id);
+            const ebooksPermitidosIds = permisos.filter(p => p.tipo_recurso === 'ebook').map(p => p.recurso_id);
 
             if (unidadesPermitidasIds.length === 0) {
                 unidadesWhere = { id: -1 };
@@ -78,6 +117,12 @@ exports.getGrupoById = async (req, res) => {
                 pdfsWhere = { id: -1 };
             } else {
                 pdfsWhere = { id: { [Op.in]: pdfsPermitidosIds } };
+            }
+
+            if (ebooksPermitidosIds.length === 0) {
+                ebooksWhere = { id: -1 };
+            } else {
+                ebooksWhere = { id: { [Op.in]: ebooksPermitidosIds } };
             }
         }
 
@@ -107,6 +152,12 @@ exports.getGrupoById = async (req, res) => {
                                     model: Pdfs,
                                     as: 'pdf',
                                     where: Object.keys(pdfsWhere).length > 0 ? pdfsWhere : undefined,
+                                    required: false
+                                },
+                                {
+                                    model: Ebooks,
+                                    as: 'ebook',
+                                    where: Object.keys(ebooksWhere).length > 0 ? ebooksWhere : undefined,
                                     required: false
                                 }
                             ]

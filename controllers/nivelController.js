@@ -1,5 +1,7 @@
 const Nivel = require('../models/Niveles');
 const Curso = require('../models/Cursos');
+const fs = require('fs');
+const path = require('path');
 
 exports.getAllNiveles = async (req, res) => {
     try {
@@ -21,7 +23,7 @@ exports.getPublicNiveles = async (req, res) => {
     try {
         const niveles = await Nivel.findAll({
             where: { estado: true },
-            attributes: ['id', 'codigo', 'nombre', 'descripcion', 'curso_id'], // Solo info relevante
+            attributes: ['id', 'codigo', 'nombre', 'descripcion', 'curso_id', 'imagen_url'], // Solo info relevante
             include: [{
                 model: Curso,
                 as: 'curso',
@@ -38,9 +40,15 @@ exports.getPublicNiveles = async (req, res) => {
 exports.createNivel = async (req, res) => {
     try {
         const { codigo, nombre, descripcion, curso_id, orden } = req.body;
+        let imagen_url = null;
+
+        if (req.file) {
+            imagen_url = `${req.protocol}://${req.get('host')}/uploads/niveles/${req.file.filename}`;
+        }
 
         const existingNivel = await Nivel.findOne({ where: { codigo } });
         if (existingNivel) {
+            if (req.file) fs.unlinkSync(req.file.path);
             return res.status(400).json({ message: 'El código del nivel ya existe' });
         }
 
@@ -50,6 +58,7 @@ exports.createNivel = async (req, res) => {
             descripcion,
             curso_id,
             orden,
+            imagen_url,
             estado: true
         });
         res.status(201).json({ message: 'Nivel creado', nivel });
@@ -64,13 +73,29 @@ exports.updateNivel = async (req, res) => {
         const { codigo, nombre, descripcion, curso_id, orden } = req.body;
         const nivel = await Nivel.findByPk(id);
 
-        if (!nivel) return res.status(404).json({ message: 'Nivel no encontrado' });
+        if (!nivel) {
+            if (req.file) fs.unlinkSync(req.file.path);
+            return res.status(404).json({ message: 'Nivel no encontrado' });
+        }
 
         if (codigo && codigo !== nivel.codigo) {
             const existingNivel = await Nivel.findOne({ where: { codigo } });
             if (existingNivel) {
+                if (req.file) fs.unlinkSync(req.file.path);
                 return res.status(400).json({ message: 'El código del nivel ya existe' });
             }
+        }
+
+        if (req.file) {
+            // Borrar imagen anterior si existe
+            if (nivel.imagen_url) {
+                const oldFileName = nivel.imagen_url.split('/').pop();
+                const oldPath = path.join(__dirname, '..', 'uploads', 'niveles', oldFileName);
+                if (fs.existsSync(oldPath)) {
+                    fs.unlinkSync(oldPath);
+                }
+            }
+            nivel.imagen_url = `${req.protocol}://${req.get('host')}/uploads/niveles/${req.file.filename}`;
         }
 
         nivel.codigo = codigo || nivel.codigo;

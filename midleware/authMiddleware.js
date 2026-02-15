@@ -3,10 +3,19 @@ const Usuario = require('../models/Usuario');
 
 module.exports = async (req, res, next) => {
     try {
-        if (!req.headers.authorization || !req.headers.authorization.startsWith('Bearer ')) {
+        let token;
+        if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+            token = req.headers.authorization.split(' ')[1];
+        } else if (req.query.token) {
+            token = req.query.token;
+        } else if (req.cookies && req.cookies.token) {
+            token = req.cookies.token;
+        }
+
+        if (!token) {
             return res.status(401).json({ message: "Token no proporcionado o formato inválido" });
         }
-        const token = req.headers.authorization.split(' ')[1];
+
         const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
 
         // Buscar el usuario en la base de datos

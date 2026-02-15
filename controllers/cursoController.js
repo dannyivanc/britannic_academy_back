@@ -1,5 +1,7 @@
 const Cursos = require('../models/Cursos');
 const sequelize = require('../config/database');
+const fs = require('fs');
+const path = require('path');
 
 exports.getAllCursos = async (req, res) => {
     try {
@@ -16,7 +18,7 @@ exports.getPublicCursos = async (req, res) => {
     try {
         const cursos = await Cursos.findAll({
             where: { estado: true },
-            attributes: ['id', 'nombre', 'descripcion'], // Solo info relevante
+            attributes: ['id', 'nombre', 'descripcion', 'imagen_url'], // Solo info relevante
             order: [['lugar', 'ASC']]
         });
         res.json(cursos);
@@ -28,9 +30,18 @@ exports.getPublicCursos = async (req, res) => {
 exports.createCurso = async (req, res) => {
     try {
         const { nombre, descripcion, lugar } = req.body;
+        let imagen_url = null;
+
+        if (req.file) {
+            imagen_url = `${req.protocol}://${req.get('host')}/uploads/cursos/${req.file.filename}`;
+        }
 
         const existingCurso = await Cursos.findOne({ where: { nombre } });
         if (existingCurso) {
+            // Borrar imagen subida si el nombre ya existe
+            if (req.file) {
+                fs.unlinkSync(req.file.path);
+            }
             return res.status(400).json({ message: 'El nombre del curso ya existe' });
         }
 
@@ -38,6 +49,7 @@ exports.createCurso = async (req, res) => {
             nombre,
             descripcion,
             lugar,
+            imagen_url,
             estado: true
         });
         res.status(201).json({ message: 'Curso creado', curso });
@@ -52,13 +64,29 @@ exports.updateCurso = async (req, res) => {
         const { nombre, descripcion, lugar } = req.body;
         const curso = await Cursos.findByPk(id);
 
-        if (!curso) return res.status(404).json({ message: 'Curso no encontrado' });
+        if (!curso) {
+            if (req.file) fs.unlinkSync(req.file.path);
+            return res.status(404).json({ message: 'Curso no encontrado' });
+        }
 
         if (nombre && nombre !== curso.nombre) {
             const existingCurso = await Cursos.findOne({ where: { nombre } });
             if (existingCurso) {
+                if (req.file) fs.unlinkSync(req.file.path);
                 return res.status(400).json({ message: 'El nombre del curso ya existe' });
             }
+        }
+
+        if (req.file) {
+            // Borrar imagen anterior si existe
+            if (curso.imagen_url) {
+                const oldFileName = curso.imagen_url.split('/').pop();
+                const oldPath = path.join(__dirname, '..', 'uploads', 'cursos', oldFileName);
+                if (fs.existsSync(oldPath)) {
+                    fs.unlinkSync(oldPath);
+                }
+            }
+            curso.imagen_url = `${req.protocol}://${req.get('host')}/uploads/cursos/${req.file.filename}`;
         }
 
         curso.nombre = nombre || curso.nombre;
@@ -113,3 +141,42 @@ exports.reorderCursos = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
+exports.getNavbarData = async (req, res) => {
+    try {
+        const Niveles = require('../models/Niveles');
+        const Unidades = require('../models/Unidades');
+        const Semanas = require('../models/Semanas');
+
+        const cursos = await Cursos.findAll({
+            where: { estado: true },
+            attributes: ['id', 'nombre'],
+            include: [{
+                model: Niveles,
+                as: 'niveles',
+                where: { estado: true },
+                attributes: ['id', 'nombre'],
+                required: false,
+                include: [{
+                    model: Unidades,
+                    as: 'unidades',
+                    attributes: ['id', 'nombre'],
+                    include: [{
+                        model: Semanas,
+                        as: 'semanas',
+                        attributes: ['id', 'nombre']
+                    }]
+                }]
+            }],
+            order: [
+                ['lugar', 'ASC'],
+                [{ model: Niveles, as: 'niveles' }, 'orden', 'ASC']
+            ]
+        });
+        res.json(cursos);
+    } catch (error) {
+        console.error('Error fetching navbar data:', error);
+        res.status(500).json({ message: error.message });
+    }
+};
+

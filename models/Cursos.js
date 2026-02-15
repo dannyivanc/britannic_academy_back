@@ -19,6 +19,10 @@ const Cursos = sequelize.define('Cursos', {
         type: DataTypes.INTEGER,
         allowNull: true,
     },
+    imagen_url: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
     estado: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
