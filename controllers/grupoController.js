@@ -9,6 +9,7 @@ const PermisoMaterial = require('../models/PermisoMaterial');
 const Pdfs = require('../models/Pdfs');
 const Ebooks = require('../models/Ebooks');
 const { Op } = require('sequelize');
+const { fixObjectUrls } = require('../utils/urlHelper');
 
 exports.getGruposByUser = async (req, res) => {
     try {
@@ -29,11 +30,11 @@ exports.getGruposByUser = async (req, res) => {
                 },
                 include: [{
                     model: Nivel, as: 'nivel',
-                    attributes: ['id', 'nombre'],
+                    attributes: ['id', 'nombre', 'logo_url'],
                     include: [{
                         model: Unidades, as: 'unidades',
                         attributes: ['id', 'nombre'],
-                        include: [{ model: Semanas, as: 'semanas', attributes: ['id', 'nombre'] }]
+                        include: [{ model: Semanas, as: 'semanas', attributes: ['id', 'nombre', 'identificador'] }]
                     }]
                 }],
                 order: [
@@ -58,13 +59,13 @@ exports.getGruposByUser = async (req, res) => {
                     where: { estado: ['activo', 'completado'] },
                     include: [{
                         model: Nivel, as: 'nivel',
-                        attributes: ['id', 'nombre', 'orden'],
+                        attributes: ['id', 'nombre', 'orden', 'logo_url'],
                         include: [{
                             model: Unidades, as: 'unidades',
                             where: { id: { [Op.in]: unidadesPermitidasIds } },
                             attributes: ['id', 'nombre'],
                             required: false,
-                            include: [{ model: Semanas, as: 'semanas', attributes: ['id', 'nombre'] }]
+                            include: [{ model: Semanas, as: 'semanas', attributes: ['id', 'nombre', 'identificador'] }]
                         }]
                     }]
                 }],
@@ -79,23 +80,25 @@ exports.getGruposByUser = async (req, res) => {
             grupos = inscripciones.map(i => i.grupo);
         }
 
-        res.json(grupos);
+        res.json(fixObjectUrls(grupos, [
+            { field: 'nivel', fields: ['logo_url'] }
+        ]));
     } catch (error) {
         console.error('Error en getGruposByUser:', error);
         res.status(500).json({ message: error.message });
     }
 };
 
-
 exports.getGrupoById = async (req, res) => {
     try {
         const { id } = req.params;
+        const isNumeric = /^\d+$/.test(id);
+        const where = isNumeric ? { id } : { identificador: id };
 
         let unidadesWhere = {};
-
-        // Filtrar unidades, pdfs y ebooks si es estudiante
         let pdfsWhere = {};
         let ebooksWhere = {};
+
         if (req.user && req.user.rol === 'estudiante') {
             const permisos = await PermisoMaterial.findAll({
                 where: {
@@ -126,12 +129,13 @@ exports.getGrupoById = async (req, res) => {
             }
         }
 
-        const grupo = await Grupo.findByPk(id, {
+        const grupo = await Grupo.findOne({
+            where,
             include: [
                 {
                     model: Nivel,
                     as: 'nivel',
-                    attributes: ['id', 'nombre'],
+                    attributes: ['id', 'nombre', 'logo_url'],
                     include: [
                         {
                             model: Curso,
@@ -142,7 +146,7 @@ exports.getGrupoById = async (req, res) => {
                             model: Unidades,
                             as: 'unidades',
                             where: Object.keys(unidadesWhere).length > 0 ? unidadesWhere : undefined,
-                            required: false, // Permitir que el grupo cargue aunque no tenga unidades (o el filtro las oculte todas)
+                            required: false,
                             include: [
                                 {
                                     model: Semanas,
@@ -176,7 +180,19 @@ exports.getGrupoById = async (req, res) => {
             return res.status(404).json({ message: 'Grupo no encontrado' });
         }
 
-        res.json(grupo);
+        res.json(fixObjectUrls(grupo, [
+            {
+                field: 'nivel', fields: [
+                    'logo_url',
+                    {
+                        field: 'unidades', fields: [
+                            { field: 'ebook', fields: ['imagen_portada'] },
+                            { field: 'pdf', fields: ['imagen_portada', 'archivo_url'] }
+                        ]
+                    }
+                ]
+            }
+        ]));
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -189,7 +205,7 @@ exports.getAllGrupos = async (req, res) => {
                 {
                     model: Nivel,
                     as: 'nivel',
-                    attributes: ['id', 'nombre', 'curso_id'],
+                    attributes: ['id', 'nombre', 'curso_id', 'logo_url'],
                     include: [
                         {
                             model: Curso,
@@ -206,7 +222,9 @@ exports.getAllGrupos = async (req, res) => {
             ],
             order: [['id', 'DESC']]
         });
-        res.json(grupos);
+        res.json(fixObjectUrls(grupos, [
+            { field: 'nivel', fields: ['logo_url'] }
+        ]));
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -220,6 +238,8 @@ exports.createGrupo = async (req, res) => {
         if (existingGrupo) {
             return res.status(400).json({ message: 'El código del grupo ya existe' });
         }
+
+
 
         const grupo = await Grupo.create({
             codigo,

@@ -165,3 +165,27 @@ exports.updateSemana = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
+exports.getSemanaById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const isNumeric = /^\d+$/.test(id);
+        const where = isNumeric ? { id } : { identificador: id };
+
+        const semana = await Semanas.findOne({
+            where,
+            include: [{
+                model: Unidades,
+                as: 'unidad'
+            }]
+        });
+
+        if (!semana) {
+            return res.status(404).json({ message: 'Semana no encontrada' });
+        }
+
+        res.json(semana);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};

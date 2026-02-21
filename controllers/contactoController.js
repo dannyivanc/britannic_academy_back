@@ -1,5 +1,6 @@
 const Contactos = require('../models/Contactos');
 const path = require('path');
+const { fixObjectUrls } = require('../utils/urlHelper');
 const fs = require('fs');
 const imageOptimizer = require('./imageOptimizationController');
 
@@ -7,7 +8,7 @@ const imageOptimizer = require('./imageOptimizationController');
 exports.getAllContactos = async (req, res) => {
     try {
         const contactos = await Contactos.findAll();
-        res.json(contactos);
+        res.json(fixObjectUrls(contactos, ['imagen_url']));
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -17,7 +18,7 @@ exports.getAllContactos = async (req, res) => {
 exports.getPublicContactos = async (req, res) => {
     try {
         const contactos = await Contactos.findAll();
-        res.json(contactos);
+        res.json(fixObjectUrls(contactos, ['imagen_url']));
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -31,7 +32,7 @@ exports.createContacto = async (req, res) => {
         if (req.file) {
             const filePath = path.join(__dirname, '..', 'uploads', 'contactos', req.file.filename);
             const newFilename = await imageOptimizer.optimizeImage(filePath);
-            imagen_url = `${req.protocol}://${req.get('host')}/uploads/contactos/${newFilename}`;
+            imagen_url = `${process.env.URL_SERVER || `${req.protocol}://${req.get('host')}`}/uploads/contactos/${newFilename}`;
         }
 
         const contacto = await Contactos.create({
@@ -40,7 +41,7 @@ exports.createContacto = async (req, res) => {
             facebook,
             imagen_url
         });
-        res.status(201).json({ message: 'Contacto creado', contacto });
+        res.status(201).json({ message: 'Contacto creado', contacto: fixObjectUrls(contacto, ['imagen_url']) });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -64,7 +65,7 @@ exports.updateContacto = async (req, res) => {
 
             const filePath = path.join(__dirname, '..', 'uploads', 'contactos', req.file.filename);
             const newFilename = await imageOptimizer.optimizeImage(filePath);
-            contacto.imagen_url = `${req.protocol}://${req.get('host')}/uploads/contactos/${newFilename}`;
+            contacto.imagen_url = `${process.env.URL_SERVER || `${req.protocol}://${req.get('host')}`}/uploads/contactos/${newFilename}`;
         }
 
         contacto.pais = pais || contacto.pais;
@@ -72,7 +73,7 @@ exports.updateContacto = async (req, res) => {
         contacto.facebook = facebook || contacto.facebook;
 
         await contacto.save();
-        res.json({ message: 'Contacto actualizado', contacto });
+        res.json({ message: 'Contacto actualizado', contacto: fixObjectUrls(contacto, ['imagen_url']) });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

@@ -5,6 +5,7 @@ const Niveles = require('../models/Niveles');
 const Cursos = require('../models/Cursos');
 const fs = require('fs');
 const path = require('path');
+const { fixObjectUrls } = require('../utils/urlHelper');
 
 exports.createOrUpdatePdf = async (req, res) => {
     try {
@@ -25,14 +26,14 @@ exports.createOrUpdatePdf = async (req, res) => {
             if (archivo) {
                 const oldPath = path.join(__dirname, '..', pdf.archivo_url);
                 if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
-                pdf.archivo_url = archivo.path;
+                pdf.archivo_url = archivo.path.replace(/\\/g, '/');
             }
             if (imagen) {
                 if (pdf.imagen_portada) {
                     const oldImgPath = path.join(__dirname, '..', pdf.imagen_portada);
                     if (fs.existsSync(oldImgPath)) fs.unlinkSync(oldImgPath);
                 }
-                pdf.imagen_portada = imagen.path;
+                pdf.imagen_portada = imagen.path.replace(/\\/g, '/');
             }
             pdf.nombre = nombre || pdf.nombre;
             await pdf.save();
@@ -42,10 +43,10 @@ exports.createOrUpdatePdf = async (req, res) => {
             pdf = await Pdfs.create({
                 nombre,
                 unidad_id,
-                archivo_url: archivo ? archivo.path : null,
-                imagen_portada: imagen ? imagen.path : null
+                archivo_url: archivo ? archivo.path.replace(/\\/g, '/') : null,
+                imagen_portada: imagen ? imagen.path.replace(/\\/g, '/') : null
             });
-            return res.status(201).json({ message: 'PDF creado correctamente', pdf });
+            return res.status(201).json({ message: 'PDF creado correctamente', pdf: fixObjectUrls(pdf, ['imagen_portada', 'archivo_url']) });
         }
     } catch (error) {
         console.error('Error al gestionar PDF:', error);
@@ -70,7 +71,7 @@ exports.getAllPdfs = async (req, res) => {
                 }
             ]
         });
-        res.json(pdfs);
+        res.json(fixObjectUrls(pdfs, ['imagen_portada', 'archivo_url']));
     } catch (error) {
         console.error('Error al obtener PDFs:', error);
         res.status(500).json({ error: 'Error al obtener PDFs' });

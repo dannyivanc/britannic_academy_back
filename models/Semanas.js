@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
+const { generateUniqueId } = require('../utils/idGenerator');
 
 const Semanas = sequelize.define('Semanas', {
     id: {
@@ -15,10 +16,21 @@ const Semanas = sequelize.define('Semanas', {
         type: DataTypes.INTEGER,
         allowNull: false,
     },
+    identificador: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        unique: true
+    },
 }, {
     tableName: 'semanas',
-    timestamps: false
+    timestamps: false,
+    hooks: {
+        beforeValidate: (semana) => {
+            if (!semana.identificador) {
+                semana.identificador = generateUniqueId(10);
+            }
+        }
+    }
 });
-
 
 module.exports = Semanas;

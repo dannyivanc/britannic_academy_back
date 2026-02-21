@@ -2,13 +2,14 @@ const Cursos = require('../models/Cursos');
 const sequelize = require('../config/database');
 const fs = require('fs');
 const path = require('path');
+const { fixObjectUrls } = require('../utils/urlHelper');
 
 exports.getAllCursos = async (req, res) => {
     try {
         const cursos = await Cursos.findAll({
             order: [['lugar', 'ASC']]
         });
-        res.json(cursos);
+        res.json(fixObjectUrls(cursos, ['imagen_url']));
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -21,7 +22,7 @@ exports.getPublicCursos = async (req, res) => {
             attributes: ['id', 'nombre', 'descripcion', 'imagen_url'], // Solo info relevante
             order: [['lugar', 'ASC']]
         });
-        res.json(cursos);
+        res.json(fixObjectUrls(cursos, ['imagen_url']));
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -33,7 +34,7 @@ exports.createCurso = async (req, res) => {
         let imagen_url = null;
 
         if (req.file) {
-            imagen_url = `${req.protocol}://${req.get('host')}/uploads/cursos/${req.file.filename}`;
+            imagen_url = `${process.env.URL_SERVER || `${req.protocol}://${req.get('host')}`}/uploads/cursos/${req.file.filename}`;
         }
 
         const existingCurso = await Cursos.findOne({ where: { nombre } });
@@ -52,7 +53,7 @@ exports.createCurso = async (req, res) => {
             imagen_url,
             estado: true
         });
-        res.status(201).json({ message: 'Curso creado', curso });
+        res.status(201).json({ message: 'Curso creado', curso: fixObjectUrls(curso, ['imagen_url']) });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -86,7 +87,7 @@ exports.updateCurso = async (req, res) => {
                     fs.unlinkSync(oldPath);
                 }
             }
-            curso.imagen_url = `${req.protocol}://${req.get('host')}/uploads/cursos/${req.file.filename}`;
+            curso.imagen_url = `${process.env.URL_SERVER || `${req.protocol}://${req.get('host')}`}/uploads/cursos/${req.file.filename}`;
         }
 
         curso.nombre = nombre || curso.nombre;
@@ -94,7 +95,7 @@ exports.updateCurso = async (req, res) => {
         curso.lugar = lugar !== undefined ? lugar : curso.lugar;
 
         await curso.save();
-        res.json({ message: 'Curso actualizado', curso });
+        res.json({ message: 'Curso actualizado', curso: fixObjectUrls(curso, ['imagen_url']) });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
+const { generateUniqueId } = require('../utils/idGenerator');
 
 const Grupo = sequelize.define('Grupo', {
     id: {
@@ -31,6 +32,11 @@ const Grupo = sequelize.define('Grupo', {
         type: DataTypes.INTEGER,
         allowNull: false,
     },
+    identificador: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        unique: true
+    },
     docente_id: {
         type: DataTypes.INTEGER,
         allowNull: false,
@@ -42,7 +48,14 @@ const Grupo = sequelize.define('Grupo', {
     }
 }, {
     tableName: 'grupos',
-    timestamps: false
+    timestamps: false,
+    hooks: {
+        beforeValidate: (grupo) => {
+            if (!grupo.identificador) {
+                grupo.identificador = generateUniqueId(10);
+            }
+        }
+    }
 });
 
 module.exports = Grupo;

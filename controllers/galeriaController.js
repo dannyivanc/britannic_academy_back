@@ -2,6 +2,7 @@ const Galeria = require('../models/Galeria');
 const sequelize = require('../config/database');
 const fs = require('fs');
 const path = require('path');
+const { fixObjectUrls } = require('../utils/urlHelper');
 
 exports.getPublicGaleria = async (req, res) => {
     try {
@@ -9,7 +10,7 @@ exports.getPublicGaleria = async (req, res) => {
             where: { proximo: false },
             order: [['id', 'DESC']]
         });
-        res.json(galeria);
+        res.json(fixObjectUrls(galeria, ['imagen_url']));
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -20,7 +21,7 @@ exports.getProximo = async (req, res) => {
         const item = await Galeria.findOne({
             where: { proximo: true }
         });
-        res.json(item || {});
+        res.json(item ? fixObjectUrls(item, ['imagen_url']) : {});
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -31,7 +32,7 @@ exports.getAllGaleria = async (req, res) => {
         const galeria = await Galeria.findAll({
             order: [['id', 'DESC']]
         });
-        res.json(galeria);
+        res.json(fixObjectUrls(galeria, ['imagen_url']));
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -43,7 +44,7 @@ exports.createGaleria = async (req, res) => {
         let imagen_url = null;
 
         if (req.file) {
-            imagen_url = `${req.protocol}://${req.get('host')}/uploads/galeria/${req.file.filename}`;
+            imagen_url = `${process.env.URL_SERVER || `${req.protocol}://${req.get('host')}`}/uploads/galeria/${req.file.filename}`;
         }
 
         const item = await Galeria.create({
@@ -51,7 +52,7 @@ exports.createGaleria = async (req, res) => {
             imagen_url,
             proximo: false
         });
-        res.status(201).json({ message: 'Imagen agregada a la galería', item });
+        res.status(201).json({ message: 'Imagen agregada a la galería', item: fixObjectUrls(item, ['imagen_url']) });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -76,12 +77,12 @@ exports.updateGaleria = async (req, res) => {
                     fs.unlinkSync(oldPath);
                 }
             }
-            item.imagen_url = `${req.protocol}://${req.get('host')}/uploads/galeria/${req.file.filename}`;
+            item.imagen_url = `${process.env.URL_SERVER || `${req.protocol}://${req.get('host')}`}/uploads/galeria/${req.file.filename}`;
         }
 
         item.nombre = nombre || item.nombre;
         await item.save();
-        res.json({ message: 'Galería actualizada', item });
+        res.json({ message: 'Galería actualizada', item: fixObjectUrls(item, ['imagen_url']) });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

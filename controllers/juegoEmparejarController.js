@@ -3,6 +3,7 @@ const ListaJuegos = require('../models/ListaJuegos');
 const JuegoEmpList = require('../models/JuegoEmpList');
 const fs = require('fs');
 const path = require('path');
+const { fixObjectUrls } = require('../utils/urlHelper');
 
 const deleteFile = (url) => {
     if (!url) return;
@@ -35,7 +36,7 @@ exports.getGameData = async (req, res) => {
         // Necesitamos getGameById para el admin. ¿Está aquí?
         // En router: router.get('/:id', authMiddleware, juegoEmparejarController.getGameById);
 
-        res.json(items);
+        res.json(fixObjectUrls(items, ['imagen_url']));
     } catch (error) {
         res.status(500).json({ error: 'Error al obtener los datos del juego' });
     }
@@ -73,7 +74,11 @@ exports.getGameById = async (req, res) => {
             result.items = items;
         }
 
-        res.json(result);
+        res.json(fixObjectUrls(result, [
+            'imagen_portada',
+            { field: 'palabras', fields: ['imagen_url'] },
+            { field: 'items', fields: ['imagen_url'] }
+        ]));
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Error al obtener juego' });

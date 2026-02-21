@@ -2,6 +2,7 @@ const Nivel = require('../models/Niveles');
 const Curso = require('../models/Cursos');
 const fs = require('fs');
 const path = require('path');
+const { fixObjectUrls } = require('../utils/urlHelper');
 
 exports.getAllNiveles = async (req, res) => {
     try {
@@ -13,7 +14,7 @@ exports.getAllNiveles = async (req, res) => {
             }],
             order: [['orden', 'ASC']]
         });
-        res.json(niveles);
+        res.json(fixObjectUrls(niveles, ['imagen_url', 'logo_url']));
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -23,7 +24,7 @@ exports.getPublicNiveles = async (req, res) => {
     try {
         const niveles = await Nivel.findAll({
             where: { estado: true },
-            attributes: ['id', 'codigo', 'nombre', 'descripcion', 'curso_id', 'imagen_url'], // Solo info relevante
+            attributes: ['id', 'codigo', 'nombre', 'descripcion', 'curso_id', 'imagen_url', 'logo_url'], // Solo info relevante
             include: [{
                 model: Curso,
                 as: 'curso',
@@ -31,7 +32,7 @@ exports.getPublicNiveles = async (req, res) => {
             }],
             order: [['orden', 'ASC']]
         });
-        res.json(niveles);
+        res.json(fixObjectUrls(niveles, ['imagen_url', 'logo_url']));
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -41,14 +42,24 @@ exports.createNivel = async (req, res) => {
     try {
         const { codigo, nombre, descripcion, curso_id, orden } = req.body;
         let imagen_url = null;
+        let logo_url = null;
 
-        if (req.file) {
-            imagen_url = `${req.protocol}://${req.get('host')}/uploads/niveles/${req.file.filename}`;
+        if (req.files && req.files['imagen']) {
+            const file = req.files['imagen'][0];
+            imagen_url = `${process.env.URL_SERVER || `${req.protocol}://${req.get('host')}`}/uploads/niveles/${file.filename}`;
+        }
+
+        if (req.files && req.files['logo']) {
+            const file = req.files['logo'][0];
+            logo_url = `${process.env.URL_SERVER || `${req.protocol}://${req.get('host')}`}/uploads/niveles/${file.filename}`;
         }
 
         const existingNivel = await Nivel.findOne({ where: { codigo } });
         if (existingNivel) {
-            if (req.file) fs.unlinkSync(req.file.path);
+            // Cleanup files if already exists
+            if (req.files) {
+                Object.values(req.files).flat().forEach(f => fs.unlinkSync(f.path));
+            }
             return res.status(400).json({ message: 'El código del nivel ya existe' });
         }
 
@@ -59,9 +70,10 @@ exports.createNivel = async (req, res) => {
             curso_id,
             orden,
             imagen_url,
+            logo_url,
             estado: true
         });
-        res.status(201).json({ message: 'Nivel creado', nivel });
+        res.status(201).json({ message: 'Nivel creado', nivel: fixObjectUrls(nivel, ['imagen_url', 'logo_url']) });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -74,28 +86,42 @@ exports.updateNivel = async (req, res) => {
         const nivel = await Nivel.findByPk(id);
 
         if (!nivel) {
-            if (req.file) fs.unlinkSync(req.file.path);
+            if (req.files) {
+                Object.values(req.files).flat().forEach(f => fs.unlinkSync(f.path));
+            }
             return res.status(404).json({ message: 'Nivel no encontrado' });
         }
 
         if (codigo && codigo !== nivel.codigo) {
             const existingNivel = await Nivel.findOne({ where: { codigo } });
             if (existingNivel) {
-                if (req.file) fs.unlinkSync(req.file.path);
+                if (req.files) {
+                    Object.values(req.files).flat().forEach(f => fs.unlinkSync(f.path));
+                }
                 return res.status(400).json({ message: 'El código del nivel ya existe' });
             }
         }
 
-        if (req.file) {
-            // Borrar imagen anterior si existe
+        // Handle Main Image
+        if (req.files && req.files['imagen']) {
+            const file = req.files['imagen'][0];
             if (nivel.imagen_url) {
                 const oldFileName = nivel.imagen_url.split('/').pop();
                 const oldPath = path.join(__dirname, '..', 'uploads', 'niveles', oldFileName);
-                if (fs.existsSync(oldPath)) {
-                    fs.unlinkSync(oldPath);
-                }
+                if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
             }
-            nivel.imagen_url = `${req.protocol}://${req.get('host')}/uploads/niveles/${req.file.filename}`;
+            nivel.imagen_url = `${process.env.URL_SERVER || `${req.protocol}://${req.get('host')}`}/uploads/niveles/${file.filename}`;
+        }
+
+        // Handle Logo
+        if (req.files && req.files['logo']) {
+            const file = req.files['logo'][0];
+            if (nivel.logo_url) {
+                const oldFileName = nivel.logo_url.split('/').pop();
+                const oldPath = path.join(__dirname, '..', 'uploads', 'niveles', oldFileName);
+                if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+            }
+            nivel.logo_url = `${process.env.URL_SERVER || `${req.protocol}://${req.get('host')}`}/uploads/niveles/${file.filename}`;
         }
 
         nivel.codigo = codigo || nivel.codigo;
@@ -105,7 +131,7 @@ exports.updateNivel = async (req, res) => {
         nivel.orden = orden !== undefined ? orden : nivel.orden;
 
         await nivel.save();
-        res.json({ message: 'Nivel actualizado', nivel });
+        res.json({ message: 'Nivel actualizado', nivel: fixObjectUrls(nivel, ['imagen_url', 'logo_url']) });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

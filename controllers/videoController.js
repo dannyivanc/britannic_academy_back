@@ -39,7 +39,17 @@ exports.getAllVideos = async (req, res) => {
 
 exports.getVideosBySemana = async (req, res) => {
     try {
-        const { semanaId } = req.params;
+        let { semanaId } = req.params;
+
+        // Soporte para búsqueda híbrida (ID o Identificador)
+        const isNumeric = /^\d+$/.test(semanaId);
+        if (!isNumeric) {
+            const semana = await Semanas.findOne({ where: { identificador: semanaId } });
+            if (semana) {
+                semanaId = semana.id;
+            }
+        }
+
         const whereClause = { semana_id: semanaId };
 
         if (req.user && req.user.rol === 'estudiante') {

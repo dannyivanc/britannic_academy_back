@@ -12,6 +12,7 @@ router.delete('/:id', authMiddleware, unidadesController.deleteUnidad);
 router.post('/semanas', authMiddleware, unidadesController.addSemana);
 router.put('/semanas/:id', authMiddleware, unidadesController.updateSemana);
 router.delete('/semanas/ultima/:unidad_id', authMiddleware, unidadesController.deleteLastSemana);
+router.get('/semanas/:id', authMiddleware, unidadesController.getSemanaById);
 router.delete('/semanas/:id', authMiddleware, unidadesController.deleteSemanaIndividual);
 
 module.exports = router;

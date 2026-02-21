@@ -5,6 +5,7 @@ const Cursos = require('../models/Cursos');
 const fs = require('fs');
 const path = require('path');
 const AdmZip = require('adm-zip');
+const { fixObjectUrls } = require('../utils/urlHelper');
 
 exports.createOrUpdateEbook = async (req, res) => {
     try {
@@ -97,7 +98,7 @@ exports.createOrUpdateEbook = async (req, res) => {
                 // console.log('[createOrUpdateEbook] Procesando archivo ZIP...');
                 const newDirPath = processZip(archivo, ebook.id);
                 ebook.directorio_path = newDirPath;
-                ebook.archivo_url = path.join(newDirPath, 'index.html');
+                ebook.archivo_url = path.join(newDirPath, 'index.html').replace(/\\/g, '/');
                 // console.log('[createOrUpdateEbook] Guardando cambios de archivo...');
                 await ebook.save();
             }
@@ -106,7 +107,7 @@ exports.createOrUpdateEbook = async (req, res) => {
                     const oldImgPath = path.resolve(process.cwd(), ebook.imagen_portada);
                     if (fs.existsSync(oldImgPath)) fs.unlinkSync(oldImgPath);
                 }
-                ebook.imagen_portada = imagen.path;
+                ebook.imagen_portada = imagen.path.replace(/\\/g, '/');
             }
             ebook.nombre = nombre || ebook.nombre;
             await ebook.save();
@@ -118,19 +119,19 @@ exports.createOrUpdateEbook = async (req, res) => {
                 unidad_id,
                 archivo_url: 'temp',
                 directorio_path: 'temp',
-                imagen_portada: imagen ? imagen.path : null
+                imagen_portada: imagen ? imagen.path.replace(/\\/g, '/') : null
             });
 
             if (archivo) {
                 // console.log('[createOrUpdateEbook] Procesando archivo ZIP para nuevo ebook...');
                 const newDirPath = processZip(archivo, ebook.id);
                 ebook.directorio_path = newDirPath;
-                ebook.archivo_url = path.join(newDirPath, 'index.html');
+                ebook.archivo_url = path.join(newDirPath, 'index.html').replace(/\\/g, '/');
             }
             // console.log('[createOrUpdateEbook] Guardando nuevo ebook...');
             await ebook.save();
 
-            return res.status(201).json({ message: 'Ebook creado correctamente', ebook });
+            return res.status(201).json({ message: 'Ebook creado correctamente', ebook: fixObjectUrls(ebook, ['imagen_portada', 'archivo_url']) });
         }
     } catch (error) {
         // console.error('Error al gestionar Ebook:', error);
@@ -155,7 +156,7 @@ exports.getAllEbooks = async (req, res) => {
                 }
             ]
         });
-        res.json(ebooks);
+        res.json(fixObjectUrls(ebooks, ['imagen_portada', 'archivo_url']));
     } catch (error) {
         // console.error('Error al obtener Ebooks:', error);
         res.status(500).json({ error: 'Error al obtener Ebooks' });

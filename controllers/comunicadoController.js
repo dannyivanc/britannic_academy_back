@@ -1,13 +1,14 @@
 const Comunicado = require('../models/Comunicado');
 const fs = require('fs');
 const path = require('path');
+const { fixObjectUrls } = require('../utils/urlHelper');
 
 exports.getPublicComunicados = async (req, res) => {
     try {
         const comunicados = await Comunicado.findAll({
             order: [['id', 'DESC']]
         });
-        res.json(comunicados);
+        res.json(fixObjectUrls(comunicados, ['imagen_url']));
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -18,7 +19,7 @@ exports.getAllComunicados = async (req, res) => {
         const comunicados = await Comunicado.findAll({
             order: [['id', 'DESC']]
         });
-        res.json(comunicados);
+        res.json(fixObjectUrls(comunicados, ['imagen_url']));
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -30,7 +31,7 @@ exports.createComunicado = async (req, res) => {
         let imagen_url = null;
 
         if (req.file) {
-            imagen_url = `${req.protocol}://${req.get('host')}/uploads/comunicados/${req.file.filename}`;
+            imagen_url = `${process.env.URL_SERVER || `${req.protocol}://${req.get('host')}`}/uploads/comunicados/${req.file.filename}`;
         }
 
         const comunicado = await Comunicado.create({
@@ -38,7 +39,7 @@ exports.createComunicado = async (req, res) => {
             descripcion,
             imagen_url
         });
-        res.status(201).json({ message: 'Comunicado creado exitosamente', comunicado });
+        res.status(201).json({ message: 'Comunicado creado exitosamente', comunicado: fixObjectUrls(comunicado, ['imagen_url']) });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -63,14 +64,14 @@ exports.updateComunicado = async (req, res) => {
                     fs.unlinkSync(oldPath);
                 }
             }
-            comunicado.imagen_url = `${req.protocol}://${req.get('host')}/uploads/comunicados/${req.file.filename}`;
+            comunicado.imagen_url = `${process.env.URL_SERVER || `${req.protocol}://${req.get('host')}`}/uploads/comunicados/${req.file.filename}`;
         }
 
         comunicado.titulo = titulo || comunicado.titulo;
         comunicado.descripcion = descripcion !== undefined ? descripcion : comunicado.descripcion;
 
         await comunicado.save();
-        res.json({ message: 'Comunicado actualizado', comunicado });
+        res.json({ message: 'Comunicado actualizado', comunicado: fixObjectUrls(comunicado, ['imagen_url']) });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

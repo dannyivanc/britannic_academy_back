@@ -31,6 +31,10 @@ const Nivel = sequelize.define('Nivel', {
         type: DataTypes.STRING,
         allowNull: true,
     },
+    logo_url: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
     estado: {
         type: DataTypes.BOOLEAN,
         allowNull: false,

@@ -2,6 +2,7 @@ const Certificados = require('../models/Certificados');
 const Usuario = require('../models/Usuario');
 const fs = require('fs');
 const path = require('path');
+const { fixObjectUrls } = require('../utils/urlHelper');
 
 // Generador de código alfanumérico único de 6 caracteres
 const generateUniqueCode = async () => {
@@ -40,7 +41,7 @@ exports.createCertificado = async (req, res) => {
 
         let imagen_url = null;
         if (req.file) {
-            imagen_url = `${req.protocol}://${req.get('host')}/uploads/certificados/${req.file.filename}`;
+            imagen_url = `${process.env.URL_SERVER || `${req.protocol}://${req.get('host')}`}/uploads/certificados/${req.file.filename}`;
         }
 
         const codigo = await generateUniqueCode();
@@ -53,7 +54,7 @@ exports.createCertificado = async (req, res) => {
 
         res.status(201).json({
             message: 'Certificado creado correctamente',
-            certificado
+            certificado: fixObjectUrls(certificado, ['imagen_url'])
         });
     } catch (error) {
         if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
@@ -72,7 +73,7 @@ exports.getAllCertificados = async (req, res) => {
             order: [['id', 'DESC']]
         });
         console.log('Certificados encontrados (simple):', certificados.length);
-        res.json(certificados);
+        res.json(fixObjectUrls(certificados, ['imagen_url']));
     } catch (error) {
         // console.error('Error en getAllCertificados:', error);
         res.status(500).json({ error: error.message });
@@ -98,7 +99,7 @@ exports.getCertificadoByCodigo = async (req, res) => {
             return res.status(404).json({ message: 'Certificado no encontrado con ese código' });
         }
 
-        res.json(certificado);
+        res.json(fixObjectUrls(certificado, ['imagen_url']));
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -111,7 +112,7 @@ exports.getCertificadosByEstudiante = async (req, res) => {
             where: { estudiante_id },
             order: [['id', 'DESC']]
         });
-        res.json(certificados);
+        res.json(fixObjectUrls(certificados, ['imagen_url']));
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -177,14 +178,14 @@ exports.updateCertificado = async (req, res) => {
                 }
             }
             // Asignar nueva imagen
-            certificate.imagen_url = `${req.protocol}://${req.get('host')}/uploads/certificados/${req.file.filename}`;
+            certificate.imagen_url = `${process.env.URL_SERVER || `${req.protocol}://${req.get('host')}`}/uploads/certificados/${req.file.filename}`;
         }
 
         await certificate.save();
 
         res.json({
             message: 'Certificado actualizado correctamente',
-            certificate
+            certificate: fixObjectUrls(certificate, ['imagen_url'])
         });
     } catch (error) {
         if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);

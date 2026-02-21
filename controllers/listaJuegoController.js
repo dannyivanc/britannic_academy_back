@@ -4,12 +4,24 @@ const PermisoMaterial = require('../models/PermisoMaterial');
 const fs = require('fs');
 const path = require('path');
 const imageOptimizer = require('./imageOptimizationController');
+const { fixUrl, fixObjectUrls } = require('../utils/urlHelper');
 const { Op } = require('sequelize');
 
 // Obtener todas las listas de una semana (Genérico para el selector de juegos)
 exports.getListasBySemana = async (req, res) => {
     try {
-        const { semanaId } = req.params;
+        let { semanaId } = req.params;
+
+        // Soporte para búsqueda híbrida (ID o Identificador)
+        const isNumeric = /^\d+$/.test(semanaId);
+        if (!isNumeric) {
+            const Semanas = require('../models/Semanas');
+            const semana = await Semanas.findOne({ where: { identificador: semanaId } });
+            if (semana) {
+                semanaId = semana.id;
+            }
+        }
+
         const whereClause = { semana_id: semanaId };
 
         // Filtrado por rol de estudiante
@@ -33,7 +45,7 @@ exports.getListasBySemana = async (req, res) => {
         const listas = await ListaJuegos.findAll({
             where: whereClause
         });
-        res.json(listas);
+        res.json(fixObjectUrls(listas, ['imagen_portada'])); // Correct field name is imagen_portada
     } catch (error) {
         res.status(500).json({ error: 'Error al obtener las listas de palabras' });
     }
@@ -50,8 +62,8 @@ exports.uploadImage = async (req, res) => {
         const newFilename = await imageOptimizer.optimizeImage(filePath);
 
         // req.get('host') obtiene el valor del encabezado HTTP 'Host' enviado por el cliente (ej. 'localhost:3000' o 'tu-ip-o-dominio.com').
-        const imageUrl = `${req.protocol}://${req.get('host')}/uploads/games/${newFilename}`;
-        res.json({ imageUrl });
+        const imageUrl = `${process.env.URL_SERVER || `${req.protocol}://${req.get('host')}`}/uploads/games/${newFilename}`;
+        res.json({ imageUrl: fixUrl(imageUrl) });
     } catch (error) {
         res.status(500).json({ error: 'Error al subir la imagen' });
     }
@@ -87,7 +99,7 @@ exports.getAllGames = async (req, res) => {
             ],
             order: [['id', 'DESC']]
         });
-        res.json(listas);
+        res.json(fixObjectUrls(listas, ['imagen_portada']));
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Error al obtener todos los juegos' });
@@ -118,7 +130,10 @@ exports.getGameById = async (req, res) => {
             ]
         });
         if (!lista) return res.status(404).json({ error: 'Juego no encontrado' });
-        res.json(lista);
+        res.json(fixObjectUrls(lista, [
+            'imagen_portada',
+            { field: 'palabras', fields: ['imagen_url'] }
+        ]));
     } catch (error) {
         res.status(500).json({ error: 'Error al obtener el juego' });
     }

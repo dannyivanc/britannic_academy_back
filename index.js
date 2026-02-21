@@ -18,6 +18,7 @@ const contactoRoutes = require('./routes/contactoRoutes');
 const galeriaRoutes = require('./routes/galeriaRoutes');
 const certificadoRoutes = require('./routes/certificadoRoutes');
 const comunicadoRoutes = require('./routes/comunicadoRoutes');
+const puntuacionRoutes = require('./routes/puntuacionRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -62,6 +63,7 @@ const Contactos = require('./models/Contactos');
 const Galeria = require('./models/Galeria');
 const Certificados = require('./models/Certificados');
 const Comunicado = require('./models/Comunicado');
+const Puntuacion = require('./models/Puntuacion');
 
 // Asociaciones
 Curso.hasMany(Nivel, { foreignKey: 'curso_id', as: 'niveles' });
@@ -80,6 +82,10 @@ Usuario.hasMany(Inscripcion, { foreignKey: 'estudiante_id', as: 'inscripciones' 
 // Certificados asociaciones
 Certificados.belongsTo(Usuario, { foreignKey: 'estudiante_id', as: 'estudiante' });
 Usuario.hasMany(Certificados, { foreignKey: 'estudiante_id', as: 'certificados' });
+
+// Puntuaciones asociaciones
+Puntuacion.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
+Usuario.hasMany(Puntuacion, { foreignKey: 'usuario_id', as: 'puntuaciones' });
 
 // Unidades y Semanas
 Nivel.hasMany(Unidades, { foreignKey: 'nivel_id', as: 'unidades' });
@@ -120,6 +126,7 @@ app.use('/api/contactos', contactoRoutes);
 app.use('/api/galeria', galeriaRoutes);
 app.use('/api/certificados', certificadoRoutes);
 app.use('/api/comunicados', comunicadoRoutes);
+app.use('/api/puntuaciones', puntuacionRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {
